@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.claude/
+site/
+# our own strategy stays private
+agents/ours/
