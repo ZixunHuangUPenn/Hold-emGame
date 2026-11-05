@@ -174,6 +174,7 @@ table.st th{text-align:left;color:var(--dim);font-weight:600;font-size:11px;lett
   border-bottom:1px solid var(--line)}
 table.st td{padding:9px 12px;border-bottom:1px solid #1a2029}
 table.st td.n{text-align:right;font-variant-numeric:tabular-nums}
+.st-note{color:var(--dim);font-size:11px;line-height:1.5;padding:10px 12px;margin:0}
 .bar{height:4px;background:#1c232d;border-radius:2px;margin-top:4px}
 .bar i{display:block;height:100%;background:var(--gold);border-radius:2px}
 #legend{padding:10px 12px;border-top:1px solid var(--line);font-size:11px;color:var(--dim);line-height:1.6}
@@ -253,7 +254,7 @@ table.st td.n{text-align:right;font-variant-numeric:tabular-nums}
   <div id="side">
     <div id="tabs"><button data-t="trace" class="on">MESSAGE TRACE</button><button data-t="stand">STANDINGS</button></div>
     <div class="pane on mono" id="p-trace"><div id="trace"></div></div>
-    <div class="pane" id="p-stand"><table class="st" id="standings"></table></div>
+    <div class="pane" id="p-stand"><table class="st" id="standings"></table><p class="st-note" id="stand-note"></p></div>
     <div id="legend" class="mono">
       <span style="color:var(--gold)">D → ALL</span> broadcast &nbsp; <span style="color:#7fc8ff">D → S#</span> private / request<br>
       <span>S# → D</span> bot reply with think time (limit 1 ms)
@@ -506,9 +507,14 @@ function renderTrace(st){
 function renderStandings(st){
   const total = st.seats.reduce((a,s)=>a+s.stack,0) || 1, bb = st.bb || 20;
   const rows = st.seats.map((s,i)=>({...s, i})).sort((a,b)=> (a.out-b.out) || (b.stack-a.stack) || ((a.place||0)-(b.place||0)));
-  $("#standings").innerHTML = `<tr><th>#</th><th>PLAYER</th><th style="text-align:right">CHIPS</th><th style="text-align:right">BB</th></tr>` +
-    rows.map((s,k)=>`<tr><td>${s.out?ordinal(s.place):k+1}</td><td>${s.name}<div class="bar"><i style="width:${100*s.stack/total}%"></i></div></td>
-      <td class="n">${s.out?"—":fmt(s.stack)}</td><td class="n">${s.out?"":(s.stack/bb).toFixed(1)}</td></tr>`).join("");
+  const pct = (k, s) => s.hands ? Math.round(100 * s[k] / s.hands) + "%" : "—";
+  const tip = s => s.hands ? `VPIP ${s.vpip}/${s.hands}, PFR ${s.pfr}/${s.hands} hands` : "no hands yet";
+  $("#standings").innerHTML = `<tr><th>#</th><th>PLAYER</th><th style="text-align:right">CHIPS</th><th style="text-align:right">BB</th>` +
+    `<th style="text-align:right" title="Voluntarily put chips in preflop">VPIP</th><th style="text-align:right" title="Raised preflop">PFR</th></tr>` +
+    rows.map((s,k)=>`<tr title="${tip(s)}"><td>${s.out?ordinal(s.place):k+1}</td><td>${s.name}<div class="bar"><i style="width:${100*s.stack/total}%"></i></div></td>
+      <td class="n">${s.out?"—":fmt(s.stack)}</td><td class="n">${s.out?"":(s.stack/bb).toFixed(1)}</td>
+      <td class="n">${pct("vpip", s)}</td><td class="n">${pct("pfr", s)}</td></tr>`).join("");
+  $("#stand-note").textContent = "VPIP: voluntarily put chips in preflop. PFR: raised preflop. Both as a share of hands dealt; hover a row for counts.";
 }
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
   document.querySelectorAll("#tabs button").forEach(x=>x.classList.toggle("on", x===b));

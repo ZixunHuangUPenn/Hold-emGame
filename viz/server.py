@@ -75,6 +75,8 @@ class Game:
         self.winners = []
         self.eliminated = {}
         self.results = None
+        self.hands, self.vpip, self.pfr = [0] * n, [0] * n, [0] * n
+        self._vpip_hand, self._pfr_hand, self._top_bet = set(), set(), 0
         self.request = None
         self.raw = None
         self.human = None
@@ -134,6 +136,7 @@ class Game:
         if self.stopped:
             raise StopGame
         with self.lock:
+            self._count_preflop(kind, d)
             if kind == "eliminated":
                 self.eliminated[d["seat"]] = d
             elif kind == "finished":
@@ -165,6 +168,26 @@ class Game:
         speed = self.speed * (4 if human_out else 1)
         self._wait(DELAY.get(kind, 300) / max(speed, 0.05))
 
+    def _count_preflop(self, kind, d):
+        """VPIP / PFR per seat, as a share of hands dealt. Blinds and the big
+        blind's check are not voluntary; an all-in is a raise only if it tops the bet."""
+        if kind == "blinds":
+            self._vpip_hand, self._pfr_hand = set(), set()
+            # a short big blind may post less, but the price to call is still the full blind
+            self._top_bet = max(d["bb"], max(d["bets"]))
+            for i in range(self.n):
+                if d["dealt"][i]:
+                    self.hands[i] += 1
+        elif kind == "action" and d["street"] == 0:
+            i, code = d["actor"], d["action"]["code"]
+            if code in "CBRA" and i not in self._vpip_hand:
+                self._vpip_hand.add(i)
+                self.vpip[i] += 1
+            if d["bets"][i] > self._top_bet and i not in self._pfr_hand:
+                self._pfr_hand.add(i)
+                self.pfr[i] += 1
+            self._top_bet = max(self._top_bet, d["bets"][i])
+
     def _bump(self):
         with self.lock:
             self.version += 1
@@ -194,7 +217,8 @@ class Game:
                      "is_human": i == self.human_seat, "stack": 2000, "bet": 0, "folded": False,
                      "dealt": False, "cards": None, "has_cards": False, "last": self.last[i],
                      "winner": None, "out": i in self.eliminated,
-                     "place": self.eliminated.get(i, {}).get("place")}
+                     "place": self.eliminated.get(i, {}).get("place"),
+                     "hands": self.hands[i], "vpip": self.vpip[i], "pfr": self.pfr[i]}
                 if d:
                     s["stack"], s["bet"] = d["stacks"][i], d["bets"][i]
                     s["folded"], s["dealt"] = d["folded"][i], d["dealt"][i]
