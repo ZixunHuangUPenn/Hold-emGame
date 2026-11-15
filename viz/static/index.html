@@ -14,13 +14,14 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
   font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;overflow:hidden}
+body{display:flex;flex-direction:column;height:100vh;height:100dvh}
 button{font:inherit;color:inherit;cursor:pointer}
 .mono{font-family:"JetBrains Mono","Consolas","SFMono-Regular",monospace}
 
 /* ---------- top bar */
-#top{height:56px;display:flex;align-items:center;gap:18px;padding:0 18px;
-  background:linear-gradient(#11161d,#0b0e13);border-bottom:1px solid var(--line)}
-#brand{font-weight:800;letter-spacing:.18em;font-size:15px}
+#top{position:relative;flex:none;min-height:56px;display:flex;align-items:center;gap:18px;padding:0 18px;
+  background:linear-gradient(#11161d,#0b0e13);border-bottom:1px solid var(--line);z-index:30}
+#brand{font-weight:800;letter-spacing:.18em;font-size:15px;white-space:nowrap}
 #brand b{color:var(--gold)}
 #info{flex:1;display:flex;justify-content:center;gap:10px}
 .chip-info{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 12px;
@@ -38,10 +39,13 @@ button{font:inherit;color:inherit;cursor:pointer}
 label.tog{font-size:12px;color:var(--dim);display:flex;gap:6px;align-items:center}
 
 /* ---------- layout */
-#main{display:flex;height:calc(100% - 56px)}
+#main{display:flex;flex:1;min-height:0;position:relative}
 #stage{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;
   background:radial-gradient(ellipse at 50% 45%,#1a2230 0%,#0b0f15 55%,#050608 100%)}
-#side{width:360px;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column}
+#side{width:380px;flex:none;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column}
+.only-narrow,.only-phone{display:none}
+#scrim{display:none}
+#sidehead{display:none}
 
 /* ---------- table */
 #tablearea{flex:1;width:100%;display:flex;align-items:center;justify-content:center;min-height:0}
@@ -199,6 +203,89 @@ table.st td.n{text-align:right;font-variant-numeric:tabular-nums}
 #lineup select{background:#0b0e13;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:7px}
 #lineup label.you select{border-color:var(--gold);color:var(--gold)}
 .dlg .go{margin-top:8px;display:flex;justify-content:flex-end;gap:10px}
+/* ---------- stats pane */
+#awards{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+.award{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 10px 10px;
+  position:relative;overflow:hidden;cursor:default}
+.award::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ac,var(--gold))}
+.award .t{font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--ac,var(--gold))}
+.award .p{font-size:13.5px;font-weight:800;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.award .v{font-size:12px;font-weight:700;color:var(--text);margin-top:1px}
+.award .b{font-size:10.5px;color:var(--dim);margin-top:3px;line-height:1.35}
+.award.empty{grid-column:1/-1;color:var(--dim);font-size:12px;text-align:center;padding:16px}
+.seat.spot .plate{border-color:#9ad1ff;box-shadow:0 0 0 1px #9ad1ff,0 0 26px rgba(120,190,255,.55)}
+#statwrap{overflow-x:auto}
+table.st.tight{font-size:11.5px}
+table.st.tight th,table.st.tight td{padding:7px 6px}
+table.st.tight th:first-child,table.st.tight td:first-child{padding-left:12px}
+.pos-n{color:var(--green)} .neg-n{color:var(--red)}
+.sec{font-size:10.5px;letter-spacing:.14em;color:var(--dim);padding:12px 12px 0;font-weight:700}
+
+/* ---------- responsive */
+@media (max-width:1280px){ .c-next{display:none} }
+@media (max-width:1100px){
+  .only-narrow{display:inline-flex}
+  #side{position:fixed;top:0;right:0;bottom:0;width:min(400px,92vw);z-index:45;transform:translateX(102%);
+    transition:transform .22s ease;box-shadow:-20px 0 60px rgba(0,0,0,.6)}
+  body.side-open #side{transform:none}
+  body.side-open #scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:44}
+  #sidehead{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);
+    font-size:12px;letter-spacing:.14em;color:var(--dim);font-weight:700}
+  #tablewrap{width:min(calc(100% - 200px), calc((100dvh - 300px) * 2.05))}
+}
+@media (max-width:980px){ .c-players{display:none} #info{gap:6px} .chip-info{padding:5px 9px} }
+@media (max-width:860px){
+  .only-phone{display:inline-flex}
+  #ctrls{display:none;position:absolute;right:10px;top:calc(100% + 6px);flex-direction:column;align-items:stretch;
+    gap:10px;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    box-shadow:0 20px 50px rgba(0,0,0,.6);min-width:230px}
+  #top.menu-open #ctrls{display:flex}
+  #ctrls .speed button{flex:1}
+  #top{gap:10px;padding:0 10px}
+}
+@media (max-width:700px){
+  #top{flex-wrap:wrap;padding:8px 10px;row-gap:8px}
+  #brand{font-size:13px;flex:1}
+  #info{order:3;flex:0 0 100%;justify-content:flex-start;overflow-x:auto;scrollbar-width:none}
+  #info::-webkit-scrollbar{display:none}
+  .chip-info{font-size:11px;padding:4px 8px}
+  #side{top:auto;left:0;right:0;width:100%;height:74dvh;border-left:0;border-top:1px solid var(--line);
+    border-radius:16px 16px 0 0;transform:translateY(102%)}
+  #tablewrap{width:min(calc(100% - 24px), calc((100dvh - 330px) * 2.05))}
+  .dlg{padding:16px}
+  .row > span{width:100%}
+  #lineup{grid-template-columns:repeat(2,1fr)}
+  .seg button{padding:8px 11px;font-size:12px}
+  #dock{height:auto;min-height:72px;padding:10px 8px}
+  #actions{flex-wrap:wrap;justify-content:center;gap:8px}
+  #raisebox{order:-1;flex:0 0 100%;min-width:0}
+  .abtn{min-width:0;flex:1;padding:11px 8px;font-size:13px}
+  #yourturn{display:none !important}
+}
+/* tall screens (phones held upright): a vertical oval with seats down both sides */
+body.portrait #tablewrap{aspect-ratio:1/1.55;width:min(calc(100% - 130px), calc((100dvh - 390px) / 1.55));
+  --bw:clamp(26px,8.6vw,46px);--sw:clamp(20px,6.2vw,34px)}
+body.portrait .seat{width:clamp(88px,26vw,128px)}
+body.portrait .plate{padding:4px 6px 4px 4px;gap:5px}
+body.portrait .avatar{width:24px;height:24px;font-size:9px}
+body.portrait .nm{font-size:10px}
+body.portrait .stk{font-size:11px}
+body.portrait .botname{display:none}
+body.portrait .badge{font-size:9px;padding:2px 6px}
+body.portrait #feltmark{top:80%;letter-spacing:.25em}
+body.portrait #center{top:50%}
+/* phones: taller, narrower oval so the side seats clear the board */
+@media (max-width:520px){
+  body.portrait #tablewrap{aspect-ratio:1/1.9;width:min(calc(100% - 92px), calc((100dvh - 300px) / 1.9));
+    --bw:clamp(20px,6.6vw,28px);--sw:clamp(16px,5vw,24px)}
+  body.portrait .seat{width:84px}
+  body.portrait .avatar{display:none}
+  body.portrait .plate{padding:4px 7px}
+  body.portrait .stk small{display:none}
+  body.portrait #pot{font-size:11px;padding:3px 10px}
+  body.portrait #banner{font-size:10.5px;max-width:150px}
+  body.portrait #feltmark{display:none}
+}
 #err{position:fixed;left:12px;bottom:12px;max-width:600px;background:#3b1d20;border:1px solid #6b2a30;color:#ffd0d3;
   padding:10px;border-radius:8px;font-size:11px;white-space:pre-wrap;display:none;z-index:60}
 </style>
@@ -210,8 +297,8 @@ table.st td.n{text-align:right;font-variant-numeric:tabular-nums}
     <div class="chip-info">LEVEL <b id="i-level">–</b></div>
     <div class="chip-info">BLINDS <b id="i-blinds">–</b></div>
     <div class="chip-info">HAND <b id="i-hand">–</b></div>
-    <div class="chip-info">NEXT LEVEL <b id="i-next">–</b></div>
-    <div class="chip-info">PLAYERS <b id="i-players">–</b></div>
+    <div class="chip-info c-next">NEXT LEVEL <b id="i-next">–</b></div>
+    <div class="chip-info c-players">PLAYERS <b id="i-players">–</b></div>
   </div>
   <div id="ctrls">
     <label class="tog"><input type="checkbox" id="showall" checked> show hole cards</label>
@@ -222,6 +309,8 @@ table.st td.n{text-align:right;font-variant-numeric:tabular-nums}
     <button class="btn" id="pause">PAUSE</button>
     <button class="btn gold" id="newbtn">NEW GAME</button>
   </div>
+  <button class="btn only-narrow" id="panelbtn" title="Trace, standings and stats">PANEL</button>
+  <button class="btn only-phone" id="menubtn" aria-expanded="false">MENU ▾</button>
 </div>
 
 <div id="main">
@@ -253,10 +342,19 @@ table.st td.n{text-align:right;font-variant-numeric:tabular-nums}
     </div>
     </div>
   </div>
+  <div id="scrim"></div>
   <div id="side">
-    <div id="tabs"><button data-t="trace" class="on">MESSAGE TRACE</button><button data-t="stand">STANDINGS</button></div>
+    <div id="sidehead"><span>TABLE PANEL</span><button class="btn" id="sideclose">CLOSE</button></div>
+    <div id="tabs"><button data-t="trace" class="on">TRACE</button><button data-t="stand">STANDINGS</button><button data-t="stats">STATS</button></div>
     <div class="pane on mono" id="p-trace"><div id="trace"></div></div>
     <div class="pane" id="p-stand"><table class="st" id="standings"></table><p class="st-note" id="stand-note"></p></div>
+    <div class="pane" id="p-stats">
+      <div class="sec">AWARDS</div><div id="awards"></div>
+      <div class="sec">PLAYER STATS</div><div id="statwrap"><table class="st tight" id="stattable"></table></div>
+      <p class="st-note">VPIP / PFR: share of hands dealt. AF: post-flop bets and raises per call.
+        WTSD: showdowns reached; W$SD: share of them won. LUCK: chips won minus all-in equity
+        (when the money went in with cards to come). Rate awards need 12 hands.</p>
+    </div>
     <div id="legend" class="mono">
       <span style="color:var(--gold)">D → ALL</span> broadcast &nbsp; <span style="color:#7fc8ff">D → S#</span> private / request<br>
       <span>S# → D</span> bot reply with think time (limit 1 ms)
@@ -329,6 +427,7 @@ function seatPos(k, n){                    // k: display index, 0 = bottom centr
 }
 function towards(p, f){ return {x: 50 + (p.x-50)*f, y: 50 + (p.y-50)*f}; }
 
+const layoutKey = st => st.id + ":" + st.n + ":" + document.body.classList.contains("portrait");
 function build(st){
   const n = st.n, anchor = st.human_seat ?? 0;
   const seats = $("#seats"); seats.innerHTML = "";
@@ -342,18 +441,18 @@ function build(st){
       <span class="pos"></span><span class="timer"></span><span class="badge" style="display:none"></span></div>`;
     seats.appendChild(el);
     const b = document.createElement("div"); b.className="bet"; b.id="bet"+i;
-    const bp = towards(p, 0.58); b.style.left = bp.x+"%"; b.style.top = bp.y+"%";
+    const bp = towards(p, document.body.classList.contains("portrait") ? 0.46 : 0.58); b.style.left = bp.x+"%"; b.style.top = bp.y+"%";
     seats.appendChild(b);
   }
   const d = document.createElement("div"); d.className="dbtn"; d.id="dbtn"; d.textContent="D"; seats.appendChild(d);
-  builtFor = st.id + ":" + n;
+  builtFor = layoutKey(st);
 }
 
 // ------------------------------------------------------------ render
 const STREET = ["PREFLOP","FLOP","TURN","RIVER"];
 function render(st){
   if (!st.id){ return; }
-  if (builtFor !== st.id + ":" + st.n) build(st);
+  if (builtFor !== layoutKey(st)) build(st);
   const n = st.n, anchor = st.human_seat ?? 0, bb = st.bb || 20;
   const alive = st.seats.filter(s => !s.out).length;
   $("#feltmark").textContent = st.variant_title || "NO LIMIT HOLD'EM";
@@ -367,7 +466,9 @@ function render(st){
   $("#showall").checked = st.show_all; $("#showall").disabled = st.mode !== "watch";
 
   // pot and board
-  const bets = st.seats.reduce((a,s)=>a+s.bet,0);
+  // after the river the chips are in the middle (and an uncalled bet already went back)
+  const settled = st.kind === "showdown" || st.kind === "win";
+  const bets = settled ? 0 : st.seats.reduce((a,s)=>a+s.bet,0);
   $("#potv").textContent = fmt((st.pot||0) - bets);
   $("#potall").textContent = bets ? `TOTAL ${fmt(st.pot)}` : (st.street!=null ? STREET[st.street] : "");
   const board = st.board || [];
@@ -415,7 +516,7 @@ function render(st){
     else bd.style.display = "none";
     // bet in front
     const be = $("#bet"+i);
-    be.innerHTML = s.bet > 0 ? chipsHTML(s.bet) + fmt(s.bet) : "";
+    be.innerHTML = s.bet > 0 && !settled ? chipsHTML(s.bet) + fmt(s.bet) : "";
   }
   // dealer button
   if (st.dealer != null){
@@ -427,6 +528,7 @@ function render(st){
   renderActions(st);
   renderTrace(st);
   renderStandings(st);
+  renderStats(st);
   if (st.results && !shownResults[st.id]){ shownResults[st.id] = true; showResults(st); }
   const e = $("#err"); e.style.display = st.error ? "block" : "none"; e.textContent = st.error || "";
 }
@@ -438,7 +540,10 @@ let req = null;
 function renderActions(st){
   req = st.request;
   const on = !!req;
-  $("#actions").classList.toggle("on", on);
+  if ($("#actions").classList.contains("on") !== on){
+    $("#actions").classList.toggle("on", on);
+    sizeTable();                                    // the dock just changed height
+  }
   $("#yourturn").style.display = on ? "block" : "none";
   const me = st.human_seat != null ? st.seats[st.human_seat] : null;
   $("#dockmsg").style.display = on ? "none" : "block";
@@ -524,11 +629,73 @@ function renderStandings(st){
       <td class="n">${pct("vpip", s)}</td><td class="n">${pct("pfr", s)}</td></tr>`).join("");
   $("#stand-note").textContent = "VPIP: voluntarily put chips in preflop. PFR: raised preflop. Both as a share of hands dealt; hover a row for counts.";
 }
+const AWARD_COLOR = {luck:"#2fbf71", unlucky:"#e0484f", nit:"#7fb2ff", action:"#f08a3c", aggro:"#e0484f",
+  station:"#5fb3b3", bluff:"#b07cff", hero:"#e4b84d", suckout:"#2fbf71", badbeat:"#e0484f", pot:"#e4b84d", shove:"#f08a3c"};
+let statsKey = "";
+function renderStats(st){
+  const S2 = st.stats;
+  if (!S2) return;
+  const key = JSON.stringify(S2);
+  if (key === statsKey) return; statsKey = key;
+  const esc = t => String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  $("#awards").innerHTML = S2.awards.length ? S2.awards.map(a =>
+    `<div class="award" data-seat="${a.seat}" style="--ac:${AWARD_COLOR[a.code]||"var(--gold)"}">
+       <div class="t">${a.title}</div><div class="p">${esc(a.name)}</div>
+       <div class="v">${esc(a.value)}</div><div class="b">${a.blurb}</div></div>`).join("")
+    : `<div class="award empty">Awards appear after a few hands.</div>`;
+  document.querySelectorAll("#awards .award[data-seat]").forEach(el => {
+    const seat = () => $("#seat" + el.dataset.seat);
+    el.onmouseenter = () => seat() && seat().classList.add("spot");
+    el.onmouseleave = () => seat() && seat().classList.remove("spot");
+  });
+  const pct = (a, b) => b ? Math.round(100 * a / b) + "%" : "—";
+  const sgn = v => v > 0 ? `<span class="pos-n">+${fmt(v)}</span>` : v < 0 ? `<span class="neg-n">${fmt(v)}</span>` : "0";
+  const rows = [...S2.rows].sort((a,b) => b.net - a.net);
+  $("#stattable").innerHTML = `<tr><th>PLAYER</th><th class="n">VPIP</th><th class="n">PFR</th><th class="n">AF</th>
+      <th class="n">WTSD</th><th class="n">W$SD</th><th class="n" title="chips won minus all-in equity">LUCK</th><th class="n">NET</th></tr>` +
+    rows.map(r => `<tr title="${r.hands} hands · ${r.pots} pots won · biggest ${fmt(r.biggest)} · best hand ${r.best_hand || "—"}">
+      <td>${esc(r.name)}</td><td class="n">${pct(r.vpip, r.hands)}</td><td class="n">${pct(r.pfr, r.hands)}</td>
+      <td class="n">${r.af == null ? "—" : r.af}</td><td class="n">${pct(r.wtsd, r.hands)}</td><td class="n">${pct(r.wsd, r.wtsd)}</td>
+      <td class="n">${r.ev_spots ? sgn(r.luck) : "—"}</td><td class="n">${sgn(r.net)}</td></tr>`).join("");
+}
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
   document.querySelectorAll("#tabs button").forEach(x=>x.classList.toggle("on", x===b));
-  $("#p-trace").classList.toggle("on", b.dataset.t==="trace");
-  $("#p-stand").classList.toggle("on", b.dataset.t==="stand");
+  for (const t of ["trace","stand","stats"]) $("#p-"+t).classList.toggle("on", b.dataset.t===t);
+  $("#legend").style.display = b.dataset.t === "trace" ? "" : "none";
 });
+
+// ------------------------------------------------------------ layout: drawer, menu, orientation
+const openSide = on => document.body.classList.toggle("side-open", on);
+$("#panelbtn").onclick = () => openSide(!document.body.classList.contains("side-open"));
+$("#sideclose").onclick = () => openSide(false);
+$("#scrim").onclick = () => openSide(false);
+$("#menubtn").onclick = e => {
+  e.stopPropagation();
+  const open = $("#top").classList.toggle("menu-open");
+  $("#menubtn").setAttribute("aria-expanded", open);
+};
+document.addEventListener("click", e => {
+  if (!e.target.closest("#ctrls") && !e.target.closest("#menubtn")) $("#top").classList.remove("menu-open");
+});
+function fitLayout(){
+  const w = innerWidth, h = innerHeight;
+  document.body.classList.toggle("portrait", w < 900 && h > w * 1.15);
+  if (S && builtFor !== layoutKey(S)) render(S);      // re-place seats and bets
+  sizeTable();
+}
+// portrait: size the oval from the space actually left between the top bar and the dock
+// (the dock grows when it is your turn), leaving room for seats that hang over the rail
+function sizeTable(){
+  const wrap = $("#tablewrap"), area = $("#tablearea");
+  if (!document.body.classList.contains("portrait")){ wrap.style.width = ""; return; }
+  const phone = innerWidth <= 520, asp = phone ? 1.9 : 1.55;
+  const a = area.getBoundingClientRect();
+  const w = Math.min(a.width - (phone ? 92 : 130), (a.height - (phone ? 120 : 140)) / asp);
+  wrap.style.width = Math.max(160, Math.floor(w)) + "px";
+}
+new ResizeObserver(sizeTable).observe($("#tablearea"));
+addEventListener("resize", fitLayout);
+fitLayout();
 
 // ------------------------------------------------------------ results
 function showResults(st){
@@ -545,7 +712,7 @@ $("#r-again").onclick = () => { $("#results").classList.remove("on"); openSetup(
 document.querySelectorAll("#speed button").forEach(b => b.onclick = () => api("/api/control", {speed:+b.dataset.s}));
 $("#pause").onclick = () => S && api("/api/control", {paused: !S.paused});
 $("#showall").onchange = e => api("/api/control", {show_all: e.target.checked});
-$("#newbtn").onclick = () => openSetup();
+$("#newbtn").onclick = () => { $("#top").classList.remove("menu-open"); openSetup(); };
 
 function seg(id, val, cb){
   document.querySelectorAll(id+" button").forEach(b => {

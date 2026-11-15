@@ -28,6 +28,7 @@ def card(c):
 
 
 from engine import variants as V
+from viz.stats import TableStats
 
 
 def clean_variant(name):
@@ -77,6 +78,7 @@ class Game:
             count[b] = count.get(b, 0) + 1
             self.names.append(b.upper() + (f"-{count[b]}" if self.lineup.count(b) > 1 else ""))
         self.rng = random.Random(seed)
+        self.stats = TableStats(n, self.names)
         self.lock = threading.Lock()
         self.version = 0
         self.id = f"{time.time():.3f}"
@@ -150,6 +152,11 @@ class Game:
             raise StopGame
         with self.lock:
             self._count_preflop(kind, d)
+            self.stats.update(kind, d)
+            if kind == "win":
+                # seeded by hand so the browser build's replays give the same numbers
+                self.stats.finish(d, random.Random(d["hand_no"]),
+                                  None if self.mode == "watch" else {self.human_seat})
             if kind == "eliminated":
                 self.eliminated[d["seat"]] = d
             elif kind == "finished":
@@ -263,6 +270,8 @@ class Game:
                     "variant": d.get("variant"), "variant_title": d.get("variant_title"),
                     "hole_count": V.get(d["variant"]).hole if d.get("variant") else 2,
                 })
+            rows = self.stats.table(d["stacks"] if d else None)
+            out["stats"] = {"rows": rows, "awards": self.stats.awards(rows)}
             if self.results:
                 r = self.results
                 out["results"] = sorted(

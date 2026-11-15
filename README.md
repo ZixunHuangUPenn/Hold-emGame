@@ -91,8 +91,14 @@ python -m viz.server        # 然后用浏览器打开 http://127.0.0.1:8765
   可以调速（½× 到 16×）、暂停，"show hole cards" 控制是否显示所有底牌。
 - **PLAY VS AGENTS**：自己选一个座位和 bot 对战。快捷键 F 弃牌，C 过牌或跟注，R 加注；
   也可以拖滑块，或点 MIN / ½ POT / ¾ POT / POT / ALL-IN。你出局后牌局以 4× 速度继续。
-- 右侧 MESSAGE TRACE 按 Exhibit D 的格式实时显示荷官和 bot 之间的消息（对战模式下隐藏其他人的底牌）；
+- 右侧 TRACE 按 Exhibit D 的格式实时显示荷官和 bot 之间的消息（对战模式下隐藏其他人的底牌）；
   STANDINGS 是实时筹码排名，比赛结束后弹出最终名次和得分。
+- **STATS**：本桌的球员数据和电视转播式的奖项。数据有 VPIP、PFR、AF、摊牌率、摊牌胜率、运气、净输赢；
+  奖项有 LUCK BOX、UNLUCKIEST、MOST NIT、ACTION PLAYER、AGGRESSOR、CALLING STATION、BLUFF KING、
+  HERO CALL、SUCKOUT ARTIST、BAD BEAT、BIGGEST POT、SHOVE MACHINE。鼠标移到奖项上会高亮对应座位。
+  运气 = 实际赢到的筹码 − 全下时（后面还有牌要发）按胜率应得的筹码，全桌加起来约等于 0（`viz/stats.py`）。
+- 手机和平板也能用：窄屏时右侧面板收进 PANEL 按钮（平板从右侧滑出，手机从底部弹出），
+  控制按钮收进 MENU；竖屏时牌桌变成竖向椭圆，大小按顶栏和操作栏之间剩下的空间计算。
 - 牌局用的是和 eval/ 完全相同的荷官与 agent 代码；你的座位不受 1 ms 限制。
 
 ## 在线版

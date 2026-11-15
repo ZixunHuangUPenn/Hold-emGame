@@ -43,6 +43,44 @@ class SeatStats:
 def _fmt(n): return f"{int(n):,}"
 
 
+def split_pots(total, contenders, scores, lows=None, hilo=False):
+    """Share out the pot after the uncalled excess was returned.
+
+    total[i]: chips seat i put in this hand; contenders: seats still in;
+    scores / lows: hand values per seat (higher is better; low None = no low).
+    Side pots by contribution level; in hi-lo each pot is halved, odd chip to the high.
+    Returns (won_high, won_low) per seat. Also used by viz/stats.py for all-in EV.
+    """
+    n = len(total)
+    lows = lows or [None] * n
+
+    def split(amount, seats, won):
+        share, odd = divmod(amount, len(seats))
+        for k, i in enumerate(seats):
+            won[i] += share + (odd if k == 0 else 0)
+
+    won = [0] * n
+    won_lo = [0] * n
+    levels = sorted(set(t for t in total if t > 0))
+    prev = 0
+    for lv in levels:
+        slice_ = sum(min(t, lv) - min(t, prev) for t in total)
+        elig = [i for i in contenders if total[i] >= lv] or contenders
+        best = max(scores[i] for i in elig)
+        hi_w = [i for i in elig if scores[i] == best]
+        lo_elig = [i for i in elig if lows[i] is not None] if hilo else []
+        if lo_elig:
+            best_lo = max(lows[i] for i in lo_elig)
+            lo_w = [i for i in lo_elig if lows[i] == best_lo]
+            half = slice_ // 2
+            split(slice_ - half, hi_w, won)
+            split(half, lo_w, won_lo)
+        else:
+            split(slice_, hi_w, won)
+        prev = lv
+    return won, won_lo
+
+
 def play_hand(agents, stacks, dealer, sb_amt, bb_amt, rng, hand_no=1, level=0,
               time_limit_ms=1.0, stats=None, log=None, on_update=None, variant="holdem"):
     """Play one hand. Returns the new stacks list.
@@ -291,30 +329,7 @@ def play_hand(agents, stacks, dealer, sb_amt, bb_amt, rng, hand_no=1, level=0,
         say("D", "ALL", history[-1].text)
         snap("showdown", showdown={i: list(holes[i]) for i in contenders}, hand_names=names)
 
-    def split(amount, seats, won):
-        share, odd = divmod(amount, len(seats))
-        for k, i in enumerate(seats):
-            won[i] += share + (odd if k == 0 else 0)
-
-    won = [0] * n
-    won_lo = [0] * n
-    levels = sorted(set(t for t in total if t > 0))
-    prev = 0
-    for lv in levels:
-        slice_ = sum(min(t, lv) - min(t, prev) for t in total)
-        elig = [i for i in contenders if total[i] >= lv] or contenders
-        best = max(scores[i] for i in elig)
-        hi_w = [i for i in elig if scores[i] == best]
-        lo_elig = [i for i in elig if lows[i] is not None] if var.hilo else []
-        if lo_elig:                              # hi-lo: low half, odd chip to the high
-            best_lo = max(lows[i] for i in lo_elig)
-            lo_w = [i for i in lo_elig if lows[i] == best_lo]
-            half = slice_ // 2
-            split(slice_ - half, hi_w, won)
-            split(half, lo_w, won_lo)
-        else:
-            split(slice_, hi_w, won)
-        prev = lv
+    won, won_lo = split_pots(total, contenders, scores, lows, var.hilo)
     winners = []
     for i in range(n):
         if won[i] or won_lo[i]:

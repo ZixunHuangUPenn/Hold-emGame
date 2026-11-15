@@ -9,7 +9,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = os.path.join(ROOT, "site")
 # agents/ours/ is never bundled: the site is public and anyone can download py.zip.
 PY_FOLDERS = ["engine", "agents"]
-EXTRA = ["viz/__init__.py", "viz/server.py", "viz/browser.py", "precompute/preflop_equity.json"]
+EXTRA = ["viz/__init__.py", "viz/server.py", "viz/browser.py", "viz/stats.py", "precompute/preflop_equity.json"]
 
 
 def bundle():
