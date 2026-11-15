@@ -27,6 +27,18 @@ def card(c):
     return RANKS[c % 13] + SUITS[c // 13]
 
 
+from engine import variants as V
+
+
+def clean_variant(name):
+    """Accept engine.variants names and "mixed:a,b,..."; anything else -> hold'em."""
+    try:
+        V.schedule(name or "holdem")
+        return name or "holdem"
+    except (KeyError, ValueError):
+        return "holdem"
+
+
 class StopGame(BaseException):
     """Raised inside the game thread to end it (BaseException so the engine's
     `except Exception` around bot calls does not swallow it)."""
@@ -48,8 +60,9 @@ class HumanAgent(Agent):
 
 class Game:
     def __init__(self, n=8, mode="watch", lineup=None, human_seat=0, speed=1.0,
-                 show_all=True, seed=None):
+                 show_all=True, seed=None, variant="holdem"):
         self.n, self.mode, self.speed, self.show_all = n, mode, speed, show_all
+        self.variant = clean_variant(variant)
         self.human_seat = human_seat if mode == "play" else None
         default = [LEAD, "tag", "station", "maniac", "nit", "pushfold", "monte", "tag"]
         self.lineup = (lineup or default)[:n]
@@ -101,7 +114,7 @@ class Game:
             self.human.q.put(None)
 
     def _run(self, agents):
-        cfg = TournamentConfig(n_seats=self.n, points=POINTS[self.n])
+        cfg = TournamentConfig(n_seats=self.n, points=POINTS[self.n], variant=self.variant)
         try:
             run_table(agents, cfg, self.rng, log=self._log, on_update=self._update)
         except StopGame:
@@ -247,6 +260,8 @@ class Game:
                     "dealer": d["dealer"], "sb_seat": d["sb_seat"], "bb_seat": d["bb_seat"],
                     "actor": d.get("actor") if kind in ("ask", "action") else None,
                     "hand_names": d.get("hand_names"),
+                    "variant": d.get("variant"), "variant_title": d.get("variant_title"),
+                    "hole_count": V.get(d["variant"]).hole if d.get("variant") else 2,
                 })
             if self.results:
                 r = self.results
@@ -299,7 +314,7 @@ class Handler(BaseHTTPRequestHandler):
             lineup = [x if x in BOTS else "tag" for x in b.get("lineup", [])] or None
             g = Game(n=n, mode=b.get("mode", "watch"), lineup=lineup,
                      human_seat=int(b.get("human_seat", 0)) % n, speed=float(b.get("speed", 1)),
-                     show_all=bool(b.get("show_all", True)))
+                     show_all=bool(b.get("show_all", True)), variant=b.get("variant", "holdem"))
             GAME["g"] = g
             g.start()
             return self._send(200, {"ok": True, "id": g.id})

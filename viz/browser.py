@@ -14,7 +14,7 @@ from agents.base import Agent
 from engine.protocol import Action, ActionType
 from engine.tournament import TournamentConfig, run_table
 from agents.registry import LEAD
-from viz.server import BOTS, POINTS, Game
+from viz.server import BOTS, POINTS, Game, clean_variant
 
 
 class _WindowFull(BaseException):
@@ -46,7 +46,7 @@ class _SimGame(Game):
     def __init__(self, session, start, count):
         s = session
         super().__init__(n=s.n, mode=s.mode, lineup=list(s.lineup), human_seat=s.human_seat,
-                         speed=1.0, show_all=s.show_all, seed=s.seed)
+                         speed=1.0, show_all=s.show_all, seed=s.seed, variant=s.variant)
         self.id, self.start_frame, self.count = s.id, start, count
         self.frame, self.frames, self._ms = 0, [], 0
 
@@ -66,7 +66,9 @@ class _SimGame(Game):
 
 
 class Session:
-    def __init__(self, n=8, mode="watch", lineup=None, human_seat=0, show_all=True, seed=None):
+    def __init__(self, n=8, mode="watch", lineup=None, human_seat=0, show_all=True, seed=None,
+                 variant="holdem"):
+        self.variant = clean_variant(variant)
         self.n = 6 if int(n) == 6 else 8
         self.mode = "play" if mode == "play" else "watch"
         self.human_seat = int(human_seat) % self.n
@@ -82,7 +84,8 @@ class Session:
         g = _SimGame(self, start, count)
         agents = [_ReplayHuman(self.actions) if i == g.human_seat else BOTS[b]()
                   for i, b in enumerate(g.lineup)]
-        cfg = TournamentConfig(n_seats=self.n, points=POINTS[self.n], time_limit_ms=None)
+        cfg = TournamentConfig(n_seats=self.n, points=POINTS[self.n], time_limit_ms=None,
+                               variant=self.variant)
         # Bots seed themselves with random.Random(); replays must reproduce them.
         seeds, real = itertools.count(self.seed + 1), random.Random
         random.Random = lambda x=None: real(next(seeds) if x is None else x)

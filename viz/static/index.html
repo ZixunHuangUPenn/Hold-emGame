@@ -90,7 +90,7 @@ label.tog{font-size:12px;color:var(--dim);display:flex;gap:6px;align-items:cente
 .seat{position:absolute;transform:translate(-50%,-50%);z-index:4;display:flex;flex-direction:column;align-items:center;
   width:clamp(120px,12vw,180px)}
 .seat .hole{display:flex;gap:3px;height:calc(var(--sw)*1.4);margin-bottom:-10px;z-index:1}
-.seat .hole .card{--w:var(--sw)}
+.seat .hole .card{--w:calc(var(--sw) * var(--k, 1))}
 .plate{position:relative;width:100%;display:flex;align-items:center;gap:8px;padding:6px 10px 6px 6px;
   background:linear-gradient(#1d232c,#0f1318);border:1px solid #2b3340;border-radius:10px;
   box-shadow:0 8px 20px rgba(0,0,0,.6);z-index:2;transition:box-shadow .2s,border-color .2s}
@@ -191,6 +191,8 @@ table.st td.n{text-align:right;font-variant-numeric:tabular-nums}
 .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .seg button{background:var(--panel2);border:0;border-right:1px solid var(--line);padding:9px 16px;font-size:13px}
 .seg button:last-child{border-right:0}
+#s-var{flex-wrap:wrap;max-width:560px}
+#s-var button{padding:9px 11px}
 .seg button.on{background:#2a3240;color:var(--gold);font-weight:700}
 #lineup{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%}
 #lineup label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--dim)}
@@ -268,6 +270,7 @@ table.st td.n{text-align:right;font-variant-numeric:tabular-nums}
     <p class="sub">Sit-and-go, 2,000 chips, blinds 10/20 rising every 25 hands, up to 200 hands. Same engine as eval/.</p>
     <div class="row"><span>MODE</span>
       <div class="seg" id="s-mode"><button data-v="watch" class="on">WATCH AGENTS</button><button data-v="play">PLAY VS AGENTS</button></div></div>
+    <div class="row"><span>GAME</span><div class="seg" id="s-var"></div></div>
     <div class="row"><span>TABLE</span>
       <div class="seg" id="s-n"><button data-v="6">6-MAX</button><button data-v="8" class="on">8-MAX</button></div></div>
     <div class="row" id="seatrow" style="display:none"><span>YOUR SEAT</span><div class="seg" id="s-seat"></div></div>
@@ -292,7 +295,9 @@ const fmt = n => Math.round(n).toLocaleString("en-US");
 const SUIT = {s:"♠",h:"♥",d:"♦",c:"♣"};
 const RANKTXT = r => r === "T" ? "10" : r;
 let S = null, lastVersion = -1, builtFor = null, bots = [];
-const setup = {mode:"watch", n:8, seat:0, lineup:["ours","tag","station","maniac","nit","pushfold","monte","tag"]};
+const VARIANTS = [["holdem","HOLD'EM"],["shortdeck","SHORT DECK"],["omaha","PLO"],["omaha5","PLO-5"],
+  ["omaha8","PLO HI-LO"],["pineapple","3-CARD"],["mixed:holdem,omaha,shortdeck,omaha8","MIXED"]];
+const setup = {mode:"watch", n:8, seat:0, variant:"holdem", lineup:["ours","tag","station","maniac","nit","pushfold","monte","tag"]};
 
 // ------------------------------------------------------------ api
 // window.staticApi is set on the static site, where there is no server (viz/web/web.js)
@@ -351,6 +356,7 @@ function render(st){
   if (builtFor !== st.id + ":" + st.n) build(st);
   const n = st.n, anchor = st.human_seat ?? 0, bb = st.bb || 20;
   const alive = st.seats.filter(s => !s.out).length;
+  $("#feltmark").textContent = st.variant_title || "NO LIMIT HOLD'EM";
   $("#i-level").textContent = st.level != null ? st.level+1 : "–";
   $("#i-blinds").textContent = st.sb ? `${fmt(st.sb)} / ${fmt(st.bb)}` : "–";
   $("#i-hand").textContent = st.hand_no ? `${st.hand_no} / ${st.max_hands}` : "–";
@@ -391,9 +397,11 @@ function render(st){
     let hh = "";
     if (s.has_cards || (s.cards && s.is_human)){
       const dim = s.folded ? "dim" : "";
-      hh = s.cards ? s.cards.map(c=>cardHTML(c, dim + (s.winner?" win":""))).join("") : cardHTML(null)+cardHTML(null);
+      hh = s.cards ? s.cards.map(c=>cardHTML(c, dim + (s.winner?" win":""))).join("")
+                   : Array.from({length: st.hole_count || 2}, () => cardHTML(null)).join("");
     }
     const holeEl = el.querySelector(".hole");
+    holeEl.style.setProperty("--k", {3:0.8, 4:0.68, 5:0.56}[st.hole_count] || 1);
     if (holeEl.dataset.k !== hh){ holeEl.innerHTML = hh; holeEl.dataset.k = hh; }
     // position tag
     const pos = el.querySelector(".pos");
@@ -548,6 +556,8 @@ function seg(id, val, cb){
 function openSetup(){ drawSetup(); $("#setup").classList.add("on"); }
 function drawSetup(){
   seg("#s-mode", setup.mode, v => { setup.mode = v; drawSetup(); });
+  $("#s-var").innerHTML = VARIANTS.map(([v,t])=>`<button data-v="${v}">${t}</button>`).join("");
+  seg("#s-var", setup.variant, v => { setup.variant = v; drawSetup(); });
   seg("#s-n", setup.n, v => { setup.n = +v; setup.seat = Math.min(setup.seat, setup.n-1); drawSetup(); });
   $("#seatrow").style.display = setup.mode === "play" ? "" : "none";
   $("#s-seat").innerHTML = Array.from({length:setup.n},(_,i)=>`<button data-v="${i}">S${i+1}</button>`).join("");
@@ -564,7 +574,7 @@ $("#s-start").onclick = async () => {
   $("#setup").classList.remove("on");
   lastVersion = -1;
   await api("/api/new", {mode:setup.mode, n:setup.n, human_seat:setup.seat, lineup:setup.lineup.slice(0,setup.n),
-    speed: S ? S.speed : 1, show_all: true});
+    speed: S ? S.speed : 1, show_all: true, variant: setup.variant});
 };
 
 // ------------------------------------------------------------ loop

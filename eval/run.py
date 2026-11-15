@@ -2,6 +2,9 @@
 
   python -m eval.run                                  # default lineup, 200 tables
   python -m eval.run --tables 1000 --lineup ours,tag,tag,station,maniac,nit,pushfold,monte
+  python -m eval.run --lineup field                   # predicted field: mostly codex-style bots
+  python -m eval.run --variant omaha                  # any engine.variants name
+  python -m eval.run --variant mixed:holdem,omaha,shortdeck   # rotate every 8 hands
   python -m eval.run --no-time-limit                  # ignore the 1 ms rule (debugging)
 
 Seats are shuffled every table; each table gets fresh bot instances.
@@ -11,8 +14,11 @@ import argparse, random, statistics, time
 from collections import defaultdict
 from engine.tournament import TournamentConfig, run_table
 from agents.registry import BOTS as FACTORIES, LEAD
+from agents.baselines import FIELDS
 
 DEFAULT = f"{LEAD},tag,tag,station,maniac,nit,pushfold,monte"
+# --lineup field: our seat plus the predicted field
+PRESETS = {k: ",".join([LEAD] + v) for k, v in FIELDS.items()}
 
 
 def main():
@@ -20,14 +26,15 @@ def main():
     ap.add_argument("--tables", type=int, default=200)
     ap.add_argument("--lineup", default=DEFAULT)
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--variant", default="holdem")
     ap.add_argument("--no-time-limit", action="store_true")
     a = ap.parse_args()
 
-    names = a.lineup.split(",")
+    names = PRESETS.get(a.lineup, a.lineup).split(",")
     assert len(names) == 8, "lineup needs 8 bots"
     unknown = sorted(set(names) - set(FACTORIES))
     assert not unknown, f"unknown bots {unknown}; available: {sorted(FACTORIES)}"
-    cfg = TournamentConfig(time_limit_ms=None if a.no_time_limit else 1.0)
+    cfg = TournamentConfig(time_limit_ms=None if a.no_time_limit else 1.0, variant=a.variant)
     rng = random.Random(a.seed)
     pts, places, wins = defaultdict(list), defaultdict(list), defaultdict(int)
     times, timeouts, errors, decisions = defaultdict(list), defaultdict(int), defaultdict(int), defaultdict(int)
@@ -50,7 +57,7 @@ def main():
             errors[nm] += st.errors
             decisions[nm] += st.decisions
 
-    print(f"{a.tables} tables in {time.time() - t0:.1f}s, avg {statistics.mean(hands):.0f} hands/table")
+    print(f"[{a.variant}] {a.tables} tables in {time.time() - t0:.1f}s, avg {statistics.mean(hands):.0f} hands/table")
     print(f"{'bot':10s}{'avg pts':>9s}{'±se':>7s}{'win%':>7s}{'avg place':>10s}"
           f"{'p50 ms':>9s}{'p99 ms':>9s}{'timeouts':>10s}{'errors':>8s}")
     for nm in sorted(pts, key=lambda k: -statistics.mean(pts[k])):

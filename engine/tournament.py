@@ -10,6 +10,7 @@ import random
 from dataclasses import dataclass, field
 from .table import play_hand, SeatStats
 from .icm import icm
+from .variants import schedule
 
 
 @dataclass
@@ -23,6 +24,9 @@ class TournamentConfig:
     # points for 1st..8th. PLACEHOLDER: the real table is announced at the event.
     points: list = field(default_factory=lambda: [100, 60, 40, 30, 20, 10, 5, 0])
     time_limit_ms: float = 1.0      # official: 1 ms per decision; None disables
+    # engine.variants name, or "mixed:holdem,omaha,..." rotating every variant_every hands
+    variant: str = "holdem"
+    variant_every: int = 8
 
 
 @dataclass
@@ -46,12 +50,13 @@ def run_table(agents, cfg=None, rng=None, log=None, on_update=None):
     dealer = rng.randrange(n)
     hand = 0
     next_place = n                           # worst place still to hand out
+    game_of = schedule(cfg.variant, cfg.variant_every)
     while sum(1 for s in stacks if s > 0) > 1 and hand < cfg.max_hands:
         level = min(hand // cfg.hands_per_level, len(cfg.blinds) - 1)
         sb, bb = cfg.blinds[level]
         before = list(stacks)
         stacks = play_hand(agents, stacks, dealer, sb, bb, rng, hand + 1, level,
-                           cfg.time_limit_ms, stats, log, on_update)
+                           cfg.time_limit_ms, stats, log, on_update, game_of(hand))
         assert sum(stacks) == sum(before), "chips not conserved"
         hand += 1
         busted = [i for i in range(n) if before[i] > 0 and stacks[i] == 0]

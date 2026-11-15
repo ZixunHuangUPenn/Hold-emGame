@@ -83,7 +83,7 @@
       cur = null; errorText = null; paused = false; showAll = true;
       speed = body.speed || speed;
       const r = await call({ method: "new", args: { n: body.n, mode: body.mode, lineup: body.lineup,
-        human_seat: body.human_seat, show_all: true } });
+        human_seat: body.human_seat, show_all: true, variant: body.variant || "holdem" } });
       fetchMore();
       return r;
     }

@@ -1,21 +1,25 @@
-"""Offline: equity of each of the 169 starting-hand classes vs 1..7 random hands.
+"""Offline: equity of each 2-card starting-hand class vs 1..7 random hands.
 
-Writes precompute/preflop_equity.json:
+Writes precompute/preflop_equity.json (hold'em) or preflop_<variant>.json:
   {"AKs": [eq_vs_1, eq_vs_2, ..., eq_vs_7], ...}
-Run:  python -m precompute.build_preflop [samples]
+Run:  python -m precompute.build_preflop [samples] [--variant shortdeck]
 Takes a few minutes at the default 6,000 samples per class and opponent count.
-At the event, if the variant changes, edit the deck/evaluator and rerun.
+Works for any 2-hole-card variant in engine.variants (deck and ranking come from there).
 """
 import json, os, random, sys
-from engine.cards import evaluate, RANKS
+from engine.cards import RANKS
+from engine import variants as V
 
-OUT = os.path.join(os.path.dirname(__file__), "preflop_equity.json")
+
+def out_path(variant):
+    name = "preflop_equity.json" if variant == "holdem" else f"preflop_{variant}.json"
+    return os.path.join(os.path.dirname(__file__), name)
 
 
-def classes():
+def classes(min_rank=0):
     out = []
-    for hi in range(12, -1, -1):
-        for lo in range(hi, -1, -1):
+    for hi in range(12, min_rank - 1, -1):
+        for lo in range(hi, min_rank - 1, -1):
             if hi == lo:
                 out.append((RANKS[hi] * 2, hi, lo, False))
             else:
@@ -24,8 +28,10 @@ def classes():
     return out
 
 
-def equity(hole, n_opp, samples, rng):
-    rest = [c for c in range(52) if c not in hole]
+def equity(hole, n_opp, samples, rng, variant="holdem"):
+    v = V.get(variant)
+    evaluate = V.engine(v).any_eval
+    rest = [c for c in v.deck if c not in hole]
     win = 0.0
     need = 5 + 2 * n_opp
     for _ in range(samples):
@@ -42,16 +48,22 @@ def equity(hole, n_opp, samples, rng):
 
 
 def main():
-    samples = int(sys.argv[1]) if len(sys.argv) > 1 else 6000
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    variant = sys.argv[sys.argv.index("--variant") + 1] if "--variant" in sys.argv else "holdem"
+    args = [a for a in args if a != variant]
+    v = V.get(variant)
+    assert v.hole == 2 and not v.omaha, "2-card variants only (Omaha: precompute.build_omaha)"
+    samples = int(args[0]) if args else 6000
     rng = random.Random(42)
     table = {}
-    for name, hi, lo, suited in classes():
+    for name, hi, lo, suited in classes(v.min_rank):
         hole = (hi, lo + (0 if suited else 13))
-        table[name] = [round(equity(hole, k, samples, rng), 4) for k in range(1, 8)]
+        table[name] = [round(equity(hole, k, samples, rng, v.name), 4) for k in range(1, 8)]
         print(name, table[name][:3])
-    with open(OUT, "w") as f:
+    out = out_path(v.name)
+    with open(out, "w") as f:
         json.dump(table, f)
-    print("wrote", OUT)
+    print("wrote", out)
 
 
 if __name__ == "__main__":

@@ -8,10 +8,13 @@ Rules follow the site's Exhibit B engine plus the official rules:
   - min raise = previous raise size (at least the big blind)
   - uncalled excess is returned first, then side pots by contribution level
   - a bot that throws or exceeds the time limit checks if it can, else folds
+  - the variant (engine.variants) sets the deck, hole cards, hand ranking, pot
+    limit and hi-lo split. In pot-limit games ALL_IN means "raise the maximum".
 """
 import time
 from dataclasses import dataclass, field
-from .cards import evaluate, hand_name, cards_str, card_str
+from .cards import cards_str, card_str
+from . import variants as V
 from .protocol import (Action, ActionType, Event, Observation, STREET_NAMES,
                        NEW_HAND, BLIND, DEAL, ACTION, STREET, REFUND, SHOWDOWN,
                        WIN, END_HAND)
@@ -41,7 +44,7 @@ def _fmt(n): return f"{int(n):,}"
 
 
 def play_hand(agents, stacks, dealer, sb_amt, bb_amt, rng, hand_no=1, level=0,
-              time_limit_ms=1.0, stats=None, log=None, on_update=None):
+              time_limit_ms=1.0, stats=None, log=None, on_update=None, variant="holdem"):
     """Play one hand. Returns the new stacks list.
 
     agents: list of Agent (index = seat). Seats with stack 0 sit out.
@@ -51,6 +54,8 @@ def play_hand(agents, stacks, dealer, sb_amt, bb_amt, rng, hand_no=1, level=0,
       Exceptions raised by on_update propagate (used to stop a game).
     Agents with attribute human=True are exempt from the time limit.
     """
+    var = V.get(variant)
+    veng = V.engine(var)
     n = len(agents)
     stacks = list(stacks)
     dealt = [stacks[i] > 0 for i in range(n)]
@@ -102,6 +107,7 @@ def play_hand(agents, stacks, dealer, sb_amt, bb_amt, rng, hand_no=1, level=0,
         if on_update is None:
             return
         d = {"hand_no": hand_no, "level": level, "sb": sb_amt, "bb": bb_amt,
+             "variant": var.name, "variant_title": var.title,
              "street": ctx["street"], "board": list(board), "pot": pot(), "dealer": dealer,
              "sb_seat": ctx["sb_seat"], "bb_seat": ctx["bb_seat"], "stacks": list(stacks),
              "bets": list(bet), "folded": list(folded), "dealt": list(dealt),
@@ -116,15 +122,16 @@ def play_hand(agents, stacks, dealer, sb_amt, bb_amt, rng, hand_no=1, level=0,
         sb_seat = nxt(dealer)
     bb_seat = nxt(sb_seat)
     ctx["sb_seat"], ctx["bb_seat"] = sb_seat, bb_seat
-    emit(Event(NEW_HAND, seat=dealer, stacks=list(stacks),
-               text=f"NEW HAND {hand_no:06d}: S{sb_seat+1} SB {sb_amt}, S{bb_seat+1} BB {bb_amt}"))
+    tag = "" if var.name == "holdem" else f" [{var.title}]"
+    emit(Event(NEW_HAND, seat=dealer, stacks=list(stacks), variant=var.name,
+               text=f"NEW HAND {hand_no:06d}{tag}: S{sb_seat+1} SB {sb_amt}, S{bb_seat+1} BB {bb_amt}"))
     say("D", "ALL", history[-1].text)
     for s, amt in ((sb_seat, sb_amt), (bb_seat, bb_amt)):
         paid = pay(s, amt)
         emit(Event(BLIND, seat=s, amount=paid, code="b"))
     snap("blinds")
 
-    deck = list(range(52))
+    deck = var.deck
     rng.shuffle(deck)
     order = []
     j = sb_seat
@@ -132,7 +139,7 @@ def play_hand(agents, stacks, dealer, sb_amt, bb_amt, rng, hand_no=1, level=0,
         order.append(j)
         j = nxt(j)
     for i in order:
-        holes[i] = (deck.pop(), deck.pop())
+        holes[i] = tuple(deck.pop() for _ in range(var.hole))
         emit(Event(DEAL, seat=i, cards=holes[i]), to_all=False, only=i)
         say("D", f"S{i+1}", f"DEAL {cards_str(holes[i])}")
     snap("deal")
@@ -160,11 +167,14 @@ def play_hand(agents, stacks, dealer, sb_amt, bb_amt, rng, hand_no=1, level=0,
             else:
                 legal = (AT.CHECK,) + (((AT.RAISE if cur > 0 else AT.BET), AT.ALL_IN) if can_raise else ())
             max_to = bet[i] + stacks[i]
+            if var.pot_limit:                    # raise at most the pot after calling
+                max_to = min(max_to, cur + pot() + to_call)
             min_to = min(cur + max(last_raise, bb_amt), max_to) if can_raise else 0
             obs = Observation(hand_no, i, holes[i], tuple(board), street, pot(), list(stacks),
                               list(bet), [dealt[k] and not folded[k] for k in range(n)],
                               dealer, sb_amt, bb_amt, min(to_call, stacks[i]), min_to, max_to,
-                              legal, history, level, hand_no - 1, len(live_seats), n)
+                              legal, history, level, hand_no - 1, len(live_seats), n,
+                              var.name, var.pot_limit)
             ask = f"TO CALL {_fmt(min(to_call, stacks[i]))}" if to_call > 0 else \
                   ("CHECK OR RAISE" if cur > 0 else "CHECK OR BET")
             say("D", f"S{i+1}", f"ACTION? {ask}, POT {_fmt(pot())}")
@@ -268,35 +278,59 @@ def play_hand(agents, stacks, dealer, sb_amt, bb_amt, rng, hand_no=1, level=0,
         say("D", f"S{k+1}", f"RETURN {_fmt(excess)} UNCALLED")
 
     scores = [-1] * n
+    lows = [None] * n
+    names = {}
     if len(contenders) > 1:
         for i in contenders:
-            scores[i] = evaluate(list(holes[i]) + board)
+            scores[i] = veng.hi(holes[i], board)
+            lows[i] = veng.lo(holes[i], board)
+            names[i] = var.hand_name(scores[i]) + (
+                f" / {V.low_name(lows[i])}" if var.hilo and lows[i] is not None else "")
         emit(Event(SHOWDOWN, hands={i: holes[i] for i in contenders}, board=tuple(board),
                    text="SHOWDOWN " + ", ".join(f"S{i+1}: {cards_str(holes[i])}" for i in contenders)))
         say("D", "ALL", history[-1].text)
-        snap("showdown", showdown={i: list(holes[i]) for i in contenders},
-             hand_names={i: hand_name(scores[i]) for i in contenders})
+        snap("showdown", showdown={i: list(holes[i]) for i in contenders}, hand_names=names)
+
+    def split(amount, seats, won):
+        share, odd = divmod(amount, len(seats))
+        for k, i in enumerate(seats):
+            won[i] += share + (odd if k == 0 else 0)
 
     won = [0] * n
+    won_lo = [0] * n
     levels = sorted(set(t for t in total if t > 0))
     prev = 0
     for lv in levels:
         slice_ = sum(min(t, lv) - min(t, prev) for t in total)
         elig = [i for i in contenders if total[i] >= lv] or contenders
         best = max(scores[i] for i in elig)
-        winners = [i for i in elig if scores[i] == best]
-        share, odd = divmod(slice_, len(winners))
-        for k, i in enumerate(winners):
-            won[i] += share + (odd if k == 0 else 0)
+        hi_w = [i for i in elig if scores[i] == best]
+        lo_elig = [i for i in elig if lows[i] is not None] if var.hilo else []
+        if lo_elig:                              # hi-lo: low half, odd chip to the high
+            best_lo = max(lows[i] for i in lo_elig)
+            lo_w = [i for i in lo_elig if lows[i] == best_lo]
+            half = slice_ // 2
+            split(slice_ - half, hi_w, won)
+            split(half, lo_w, won_lo)
+        else:
+            split(slice_, hi_w, won)
         prev = lv
     winners = []
     for i in range(n):
-        if won[i]:
-            stacks[i] += won[i]
-            what = hand_name(scores[i]) if len(contenders) > 1 else "UNCONTESTED"
-            emit(Event(WIN, seat=i, amount=won[i], code="W", text=f"POT {_fmt(won[i])} TO S{i+1}, {what}"))
+        if won[i] or won_lo[i]:
+            amt = won[i] + won_lo[i]
+            stacks[i] += amt
+            if len(contenders) == 1:
+                what = "UNCONTESTED"
+            elif won[i] and won_lo[i]:
+                what = f"SCOOP, {names[i]}"
+            elif won_lo[i]:
+                what = V.low_name(lows[i])
+            else:
+                what = var.hand_name(scores[i])
+            emit(Event(WIN, seat=i, amount=amt, code="W", text=f"POT {_fmt(amt)} TO S{i+1}, {what}"))
             say("D", "ALL", history[-1].text)
-            winners.append({"seat": i, "amount": won[i], "hand": what})
+            winners.append({"seat": i, "amount": amt, "hand": what})
     snap("win", winners=winners, showdown={i: list(holes[i]) for i in contenders} if len(contenders) > 1 else {})
     emit(Event(END_HAND, stacks=list(stacks), text=f"END HAND {hand_no:06d}"))
     say("--", "--", f"END HAND {hand_no:06d}: STACKS {stacks}")

@@ -72,6 +72,7 @@ class Event:
     hands: Optional[dict] = None
     stacks: Optional[List[int]] = None
     text: str = ""
+    variant: str = ""            # NEW_HAND: which game this hand is (see engine.variants)
 
 
 STREET_NAMES = ["PREFLOP", "FLOP", "TURN", "RIVER"]
@@ -101,6 +102,8 @@ class Observation:
     hands_played: int            # at this table
     players_left: int            # seats with chips at the start of this hand
     n_seats: int
+    variant: str = "holdem"      # engine.variants name; changes hand to hand in mixed games
+    pot_limit: bool = False      # max_raise_to already respects it
 
     @property
     def my_stack(self): return self.stacks[self.seat]
