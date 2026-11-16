@@ -7,10 +7,11 @@
 import argparse, random
 from engine.table import play_hand
 from engine.variants import schedule
-from eval.run import FACTORIES, DEFAULT
+from eval.run import FACTORIES, DEFAULT, utf8_stdout
 
 
 def main():
+    utf8_stdout()
     ap = argparse.ArgumentParser()
     ap.add_argument("--hands", type=int, default=3)
     ap.add_argument("--seed", type=int, default=3)

@@ -43,6 +43,10 @@ python -m eval.run --tables 500         # 评估：平均得分、胜率、耗�
 python -m eval.run --lineup tag,tag,nit,nit,station,maniac,pushfold,monte
 python -m eval.run --variant omaha      # 换变体评估（见下方"变体"）
 python -m eval.run --lineup field       # 预测的对手群体：多数是 codex 式 TAG
+python -m eval.run --tables 5000 --workers 11 --no-time-limit   # 多进程；同一 --seed 结果和单进程完全一致
+python -m eval.run --set use_phases=False          # 临时改 ours 的参数（需要 agents/ours/）
+python -m eval.run --alt phase_open.late=1.6       # A/B：同一批牌桌各跑一次，报告逐桌配对的差值
+python -m eval.run --json out.json                 # 结果另存为 JSON
 python -m eval.trace --variant omaha8   # 看高低分池怎么结算
 python -m precompute.build_preflop 6000 --variant shortdeck
 python -m precompute.build_omaha        # omaha、omaha5、omaha8 的翻前模型
