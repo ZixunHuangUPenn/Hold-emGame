@@ -36,7 +36,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .speed button{background:var(--panel2);border:0;border-right:1px solid var(--line);padding:7px 9px;font-size:12px}
 .speed button:last-child{border-right:0}
 .speed button.on{background:#2a3240;color:var(--gold)}
-label.tog{font-size:12px;color:var(--dim);display:flex;gap:6px;align-items:center}
+label.tog{font-size:12px;color:var(--dim);display:flex;gap:6px;align-items:center;white-space:nowrap}
+#gtobtn{white-space:nowrap}
 
 /* ---------- layout */
 #main{display:flex;flex:1;min-height:0;position:relative}
@@ -161,7 +162,7 @@ label.tog{font-size:12px;color:var(--dim);display:flex;gap:6px;align-items:cente
 
 /* ---------- side panel */
 #tabs{display:flex;border-bottom:1px solid var(--line)}
-#tabs button{flex:1;background:none;border:0;padding:12px 0;font-size:12px;letter-spacing:.12em;color:var(--dim);
+#tabs button{flex:1;background:none;border:0;padding:12px 0;font-size:12px;letter-spacing:.08em;color:var(--dim);
   border-bottom:2px solid transparent}
 #tabs button.on{color:var(--text);border-bottom-color:var(--gold)}
 .pane{flex:1;overflow:auto;display:none}
@@ -286,6 +287,25 @@ body.portrait #center{top:50%}
   body.portrait #banner{font-size:10.5px;max-width:150px}
   body.portrait #feltmark{display:none}
 }
+/* ---------- GTO advisor */
+#gtobox{display:none;width:250px;flex:none;background:rgba(16,20,26,.9);border:1px solid #2b3340;border-radius:10px;padding:8px 10px;
+  font-size:11.5px;line-height:1.45}
+#gtobox.on{display:block}
+#gtobox .gh{display:flex;justify-content:space-between;gap:6px;font-weight:800;letter-spacing:.04em;font-size:11px;color:var(--gold)}
+#gtobox .gh a{color:var(--dim);font-weight:600;text-decoration:none}
+#gtobox .gb{display:flex;height:8px;border-radius:4px;overflow:hidden;background:#2c4f80;margin:6px 0 4px}
+#gtobox .gb i{display:block;height:100%}
+#gtobox .gf b{color:var(--text)}
+#gtobox .gn{color:var(--dim);font-size:10.5px;margin-top:3px}
+#gtofb{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);padding:6px 12px;border-radius:8px;font-size:12px;
+  font-weight:700;background:rgba(10,13,18,.92);border:1px solid #2b3340;white-space:nowrap;opacity:0;transition:opacity .3s;pointer-events:none;z-index:6}
+#gtofb.on{opacity:1}
+.g-best{color:var(--green)}.g-ok{color:#9be37a}.g-inacc{color:var(--gold)}.g-wrong{color:var(--red)}
+#p-gto{padding:12px}
+#gto-cur{margin-bottom:12px}
+#gto-log div{display:flex;gap:8px;font-size:12px;padding:5px 0;border-bottom:1px solid #1a2029}
+#gto-log .t{color:var(--dim);flex:1}
+@media (max-width:700px){ #gtobox{order:-2;width:100%} }
 #err{position:fixed;left:12px;bottom:12px;max-width:600px;background:#3b1d20;border:1px solid #6b2a30;color:#ffd0d3;
   padding:10px;border-radius:8px;font-size:11px;white-space:pre-wrap;display:none;z-index:60}
 </style>
@@ -307,6 +327,8 @@ body.portrait #center{top:50%}
       <button data-s="4">4×</button><button data-s="16">16×</button>
     </div>
     <button class="btn" id="pause">PAUSE</button>
+    <label class="tog" title="Preflop GTO advice when it is your turn"><input type="checkbox" id="gtotog" checked> GTO hints</label>
+    <a class="btn" id="gtobtn" href="gto.html" target="_blank" style="text-decoration:none">GTO 学习</a>
     <button class="btn gold" id="newbtn">NEW GAME</button>
   </div>
   <button class="btn only-narrow" id="panelbtn" title="Trace, standings and stats">PANEL</button>
@@ -325,7 +347,9 @@ body.portrait #center{top:50%}
       </div>
       <div id="seats"></div>
     </div></div>
-    <div id="dock">
+    <div id="dock" style="position:relative">
+    <div id="gtofb"></div>
+    <div id="gtobox"></div>
     <div id="dockmsg">WATCHING</div>
     <div id="yourturn">YOUR ACTION</div>
     <div id="actions">
@@ -345,7 +369,7 @@ body.portrait #center{top:50%}
   <div id="scrim"></div>
   <div id="side">
     <div id="sidehead"><span>TABLE PANEL</span><button class="btn" id="sideclose">CLOSE</button></div>
-    <div id="tabs"><button data-t="trace" class="on">TRACE</button><button data-t="stand">STANDINGS</button><button data-t="stats">STATS</button></div>
+    <div id="tabs"><button data-t="trace" class="on">TRACE</button><button data-t="stand">STANDINGS</button><button data-t="stats">STATS</button><button data-t="gto">GTO</button></div>
     <div class="pane on mono" id="p-trace"><div id="trace"></div></div>
     <div class="pane" id="p-stand"><table class="st" id="standings"></table><p class="st-note" id="stand-note"></p></div>
     <div class="pane" id="p-stats">
@@ -354,6 +378,13 @@ body.portrait #center{top:50%}
       <p class="st-note">VPIP / PFR: share of hands dealt. AF: post-flop bets and raises per call.
         WTSD: showdowns reached; W$SD: share of them won. LUCK: chips won minus all-in equity
         (when the money went in with cards to come). Rate awards need 12 hands.</p>
+    </div>
+    <div class="pane" id="p-gto">
+      <div id="gto-cur" class="st-note" style="padding:0">Your preflop decisions are checked against GTO charts as you play.</div>
+      <div class="sec" style="padding:0 0 6px">YOUR PREFLOP DECISIONS <span id="gto-acc"></span></div>
+      <div id="gto-log"></div>
+      <p class="st-note" style="padding:10px 0 0">Charts: approximate 100bb solver ranges. Short stacks: push/fold (SB vs BB solved live).
+        Facing an all-in: your equity vs an estimated range against the pot odds. <a href="gto.html" target="_blank" style="color:var(--gold)">Open the GTO trainer</a></p>
     </div>
     <div id="legend" class="mono">
       <span style="color:var(--gold)">D → ALL</span> broadcast &nbsp; <span style="color:#7fc8ff">D → S#</span> private / request<br>
@@ -387,6 +418,7 @@ body.portrait #center{top:50%}
 </div>
 <div id="err" class="mono"></div>
 
+<script src="gto.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const fmt = n => Math.round(n).toLocaleString("en-US");
@@ -526,6 +558,7 @@ function render(st){
   }
 
   renderActions(st);
+  renderGTO(st);
   renderTrace(st);
   renderStandings(st);
   renderStats(st);
@@ -584,7 +617,7 @@ document.querySelectorAll("#presets button").forEach(b => b.onclick = () => {
   v = Math.max(req.min_raise_to, Math.min(req.max_raise_to, v));
   $("#ramount").value = v; $("#rslider").value = v; updateRaiseLabel();
 });
-function send(type, amount=0){ if (!req) return; req = null; $("#actions").classList.remove("on"); api("/api/action", {type, amount}); }
+function send(type, amount=0){ if (!req) return; gtoJudge(type); req = null; $("#actions").classList.remove("on"); api("/api/action", {type, amount}); }
 $("#a-fold").onclick = () => send("F");
 $("#a-call").onclick = () => send(req && req.legal.includes("C") ? "C" : "X");
 $("#a-raise").onclick = () => {
@@ -600,6 +633,54 @@ document.addEventListener("keydown", e => {
   else if (k === "c") $("#a-call").click();
   else if (k === "r") $("#a-raise").click();
 });
+
+// ------------------------------------------------------------ GTO advisor (viz/static/gto.js)
+const GTO = window.GTO;
+let gtoOn = localStorage.getItem("gto-hints") !== "0", advice = null, adviceKey = "", gtoLog = [];
+try { gtoLog = JSON.parse(sessionStorage.getItem("gto-log")) || []; } catch(e) {}
+if (GTO) GTO.loadEquity("hu_equity.json").then(() => { adviceKey = ""; S && renderGTO(S); });
+$("#gtotog").checked = gtoOn;
+$("#gtotog").onchange = e => { gtoOn = e.target.checked; localStorage.setItem("gto-hints", gtoOn ? "1" : "0"); S && renderGTO(S); };
+function renderGTO(st){
+  const box = $("#gtobox");
+  const key = st.request ? st.id + ":" + st.hand_no + ":" + JSON.stringify(st.request) + GTO?.hasEquity() : "";
+  if (key !== adviceKey){ adviceKey = key; advice = GTO && st.request ? GTO.advise(st) : null; }
+  const show = gtoOn && advice && st.mode === "play";
+  box.classList.toggle("on", !!show);
+  if (!show) return;
+  if (advice.unsupported){ box.innerHTML = `<div class="gn">${advice.unsupported}</div>`; return; }
+  const f = advice.freqs, L = advice.labels || {};
+  if (!f){ box.innerHTML = `<div class="gh"><span>GTO · ${advice.title}</span></div><div class="gn">${advice.note || ""}</div>`; return; }
+  const p = x => Math.round(x * 100) + "%";
+  const rc = advice.shove ? "#b3183a" : "#e0603f";
+  const parts = [[L.raise, f.r], [L.call, f.c], [L.fold, f.f]].filter(([, v]) => v > 0.005).map(([t, v]) => `${t} <b>${p(v)}</b>`).join(" · ");
+  box.innerHTML = `<div class="gh"><span>GTO · ${advice.title}</span><a href="gto.html" target="_blank">图表 ↗</a></div>
+    <div class="gb"><i style="width:${f.r*100}%;background:${rc}"></i><i style="width:${f.c*100}%;background:#2fbf71"></i></div>
+    <div class="gf">${advice.hand}: ${parts}</div>` + (advice.note ? `<div class="gn">${advice.note}</div>` : "");
+}
+// grade the action just taken against the advice for this decision
+function gtoJudge(type){
+  if (!advice || !advice.freqs || !req) return;
+  const allInCall = type === "A" && req.max_raise_to <= req.my_bet + req.to_call;
+  const a = type === "F" ? "f" : (type === "C" || type === "X" || allInCall) ? "c" : "r";
+  const g = GTO.grade(advice.freqs, a), L = advice.labels;
+  const name = {f: L.fold, c: L.call, r: L.raise}[a];
+  gtoLog.push({hand: advice.hand, title: advice.title, act: name, g: g.code, text: g.text, p: g.p});
+  gtoLog = gtoLog.slice(-60);
+  try { sessionStorage.setItem("gto-log", JSON.stringify(gtoLog)); } catch(e) {}
+  const fb = $("#gtofb");
+  fb.innerHTML = `<span class="g-${g.code}">${g.text}</span> · ${advice.hand} ${name}（GTO ${Math.round(g.p * 100)}%）`;
+  fb.classList.add("on"); clearTimeout(fb._t); fb._t = setTimeout(() => fb.classList.remove("on"), 2600);
+  drawGtoLog();
+}
+function drawGtoLog(){
+  const good = gtoLog.filter(x => x.g === "best" || x.g === "ok").length;
+  $("#gto-acc").textContent = gtoLog.length ? `· ${good}/${gtoLog.length} GTO-OK` : "";
+  $("#gto-log").innerHTML = gtoLog.slice().reverse().map(x =>
+    `<div><span class="g-${x.g}">●</span><b>${x.hand}</b><span class="t">${x.title}</span><span>${x.act}</span></div>`).join("") ||
+    `<div class="t" style="color:var(--dim)">Play a hand (PLAY VS AGENTS) to see your decisions here.</div>`;
+}
+drawGtoLog();
 
 // ------------------------------------------------------------ side panel
 let traceKey = "";
@@ -660,7 +741,7 @@ function renderStats(st){
 }
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
   document.querySelectorAll("#tabs button").forEach(x=>x.classList.toggle("on", x===b));
-  for (const t of ["trace","stand","stats"]) $("#p-"+t).classList.toggle("on", b.dataset.t===t);
+  for (const t of ["trace","stand","stats","gto"]) $("#p-"+t).classList.toggle("on", b.dataset.t===t);
   $("#legend").style.display = b.dataset.t === "trace" ? "" : "none";
 });
 

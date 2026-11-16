@@ -39,7 +39,10 @@ def main():
     loader = (f'<script>window.POKER_WORKER_URL="worker.js?v={v}";window.POKER_ZIP_URL="py.zip?v={v}";</script>\n'
               f'<script src="web.js?v={v}"></script>\n')
     files = {"index.html": (head + loader + sep + tail).encode("utf-8"), "web.js": web,
-             "worker.js": worker, "py.zip": data, ".nojekyll": b""}
+             "worker.js": worker, "py.zip": data, ".nojekyll": b"",
+             # GTO trainer: plain static files, no Python engine needed
+             "gto.html": read("viz", "static", "gto.html"), "gto.js": read("viz", "static", "gto.js"),
+             "hu_equity.json": read("precompute", "hu_equity.json")}
     for name, content in files.items():
         with open(os.path.join(SITE, name), "wb") as f:
             f.write(content)

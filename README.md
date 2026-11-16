@@ -22,9 +22,12 @@ precompute/
   build_preflop.py   线下生成 2 张底牌变体的翻前胜率表（hold'em、short deck）
   build_omaha.py     线下拟合奥马哈类翻前模型 omaha_preflop.json（需要 numpy，约 5 分钟）
   omaha_features.py  奥马哈翻前特征 + 运行时模型（纯 Python）
+  build_hu_equity.py 线下生成 169×169 手牌对抗胜率表 hu_equity.json（GTO 推或弃求解用，约 1 分钟）
 viz/
   server.py          本地可视化服务器（只用标准库），浏览器打开 http://127.0.0.1:8765
-  static/index.html  电视转播风格牌桌：6 人桌和 8 人桌，观战或亲自对战
+  static/index.html  电视转播风格牌桌：6 人桌和 8 人桌，观战或亲自对战；对战时显示翻前 GTO 建议
+  static/gto.html    GTO 学习页（顶部 "GTO 学习" 按钮）：翻前范围表、按位置做题、推或弃 solver 实时求解演示
+  static/gto.js      翻前范围表（100bb 近似值）、单挑推或弃纳什求解器、牌桌上的实时建议
   browser.py         网页版后端：在浏览器里用 Pyodide 运行同一套引擎
   web/               网页版前端：替代 server.py 回应页面请求（web.js）并运行 Python（worker.js）
   build_site.py      生成 GitHub Pages 用的静态网站 site/（不含 ours/）
@@ -51,6 +54,7 @@ python -m eval.trace --variant omaha8   # 看高低分池怎么结算
 python -m precompute.build_preflop 6000 --variant shortdeck
 python -m precompute.build_omaha        # omaha、omaha5、omaha8 的翻前模型
 python -m engine.icm                    # ICM 耗时
+python -m precompute.build_hu_equity --workers 11   # 重建 GTO 页用的手牌对抗胜率表
 ```
 
 ## 变体

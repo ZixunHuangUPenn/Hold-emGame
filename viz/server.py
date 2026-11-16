@@ -17,6 +17,11 @@ from agents.base import Agent
 from agents.registry import BOTS, LEAD
 
 STATIC = os.path.join(os.path.dirname(__file__), "static")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# extra files the pages load: GTO trainer page, its script, and the hand-vs-hand equity table
+FILES = {"/gto.html": (os.path.join(STATIC, "gto.html"), "text/html; charset=utf-8"),
+         "/gto.js": (os.path.join(STATIC, "gto.js"), "text/javascript; charset=utf-8"),
+         "/hu_equity.json": (os.path.join(ROOT, "precompute", "hu_equity.json"), "application/json")}
 POINTS = {6: [100, 60, 40, 25, 10, 0], 8: [100, 60, 40, 30, 20, 10, 5, 0]}
 # ms at 1x speed after each kind of update
 DELAY = {"blinds": 350, "deal": 650, "ask": 280, "action": 650, "street": 900,
@@ -92,6 +97,7 @@ class Game:
         self.results = None
         self.hands, self.vpip, self.pfr = [0] * n, [0] * n, [0] * n
         self._vpip_hand, self._pfr_hand, self._top_bet = set(), set(), 0
+        self.preflop = []                # this hand's preflop actions, for the page's GTO advisor
         self.request = None
         self.raw = None
         self.human = None
@@ -193,6 +199,7 @@ class Game:
         blind's check are not voluntary; an all-in is a raise only if it tops the bet."""
         if kind == "blinds":
             self._vpip_hand, self._pfr_hand = set(), set()
+            self.preflop = []
             # a short big blind may post less, but the price to call is still the full blind
             self._top_bet = max(d["bb"], max(d["bets"]))
             for i in range(self.n):
@@ -200,6 +207,7 @@ class Game:
                     self.hands[i] += 1
         elif kind == "action" and d["street"] == 0:
             i, code = d["actor"], d["action"]["code"]
+            self.preflop.append({"seat": i, "code": code, "to": d["bets"][i]})
             if code in "CBRA" and i not in self._vpip_hand:
                 self._vpip_hand.add(i)
                 self.vpip[i] += 1
@@ -258,7 +266,7 @@ class Game:
                 "show_all": self.show_all, "kind": kind, "seats": seats,
                 "log": self._visible_log(), "request": self.request, "error": self.error,
                 "hands_per_level": cfg.hands_per_level, "max_hands": cfg.max_hands,
-                "blinds": cfg.blinds, "results": None,
+                "blinds": cfg.blinds, "results": None, "preflop": list(self.preflop),
             }
             if d:
                 out.update({
@@ -305,6 +313,10 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             with open(os.path.join(STATIC, "index.html"), "rb") as f:
                 return self._send(200, f.read(), "text/html; charset=utf-8")
+        if path in FILES:
+            fn, ctype = FILES[path]
+            with open(fn, "rb") as f:
+                return self._send(200, f.read(), ctype)
         if path == "/api/bots":
             return self._send(200, sorted(BOTS))
         if path == "/api/state":
